@@ -24,16 +24,24 @@ import collections
 from .configparser import SafeConfigParser
 from .Filter import all_filters, register_filter
 
-user_config_dir = os.path.join(os.environ.get('XDG_CONFIG_HOME',
-                                              os.path.expanduser('~/.config')),
-                               'afew')
+user_config_dir = os.path.join(
+    os.environ.get('XDG_CONFIG_HOME', os.path.expanduser('~/.config')),
+    'afew')
 
-settings = SafeConfigParser()
-# preserve the capitalization of the keys.
-settings.optionxform = str
+settings = None
 
-settings.readfp(open(os.path.join(os.path.dirname(__file__), 'defaults', 'afew.config')))
-settings.read(os.path.join(user_config_dir, 'config'))
+
+def load_settings(user_config):
+    global settings
+    settings = SafeConfigParser()
+    # preserve the capitalization of the keys.
+    settings.optionxform = str
+
+    path = os.path.join(os.path.dirname(__file__),
+                        'defaults', 'afew.config')
+    with open(path) as default_fp:
+        settings.readfp(default_fp)
+    settings.read(os.path.expanduser(user_config))
 
 'All the values for keys listed here are interpreted as ';'-delimited lists'
 value_is_a_list = ['tags']
@@ -41,6 +49,7 @@ mail_mover_section = 'MailMover'
 
 section_re = re.compile(r'^(?P<name>[a-z_][a-z0-9_]*)(\((?P<parent_class>[a-z_][a-z0-9_]*)\)|\.(?P<index>\d+))?$', re.I)
 def get_filter_chain():
+    global settings
     filter_chain = []
 
     for section in settings.sections():
@@ -77,6 +86,7 @@ def get_filter_chain():
     return filter_chain
 
 def get_mail_move_rules():
+    global settings
     rule_pattern = re.compile(r"'(.+?)':(\S+)")
     if settings.has_option(mail_mover_section, 'folders'):
         all_rules = collections.OrderedDict()
@@ -97,6 +107,7 @@ def get_mail_move_rules():
         raise NameError("No folders defined to move mails from.")
 
 def get_mail_move_age():
+    global settings
     max_age = 0
     if settings.has_option(mail_mover_section, 'max_age'):
         max_age = settings.get(mail_mover_section, 'max_age')
